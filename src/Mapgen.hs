@@ -4,6 +4,8 @@ import System.Random
 
 import System.Console.GetOpt
 import System.Environment(getArgs, getProgName)
+import Constants
+import Types
 
 type Coord = (Int,Int)
 type Range = (Int,Int)
@@ -98,29 +100,17 @@ splatter n gen m =
     rooms = take n $ randomRooms g1 (length (m!!0),length m)
     center ((x,y),(u,v)) = ((x+u) `quot` 2, (y+v) `quot` 2)
 
-data Options = Options {optRooms::Int,optDimensions::Coord}
+convertRMap :: RMap -> [Point]
+convertRMap rmap = let
+    doCol [] _ _ = []
+    doCol (item:col) rowIndex colIndex = case item of
+      TWall -> Point colIndex rowIndex : doCol col rowIndex (colIndex+1)
+      _ -> doCol col rowIndex (colIndex+1)
+    doRow [] _ = []
+    doRow (row:world) rowIndex = doCol row rowIndex 0 : doRow world (rowIndex+1)
+  in concat $ doRow rmap 0
 
-defaults :: Options
-defaults = Options {optRooms=5,optDimensions=(80,60)}
-
-options =
-  [Option "n" ["rooms"]
-      (ReqArg (\s op-> return op{optRooms=read s::Int}) "ROOMS")
-      "Number of rooms to dig.",
-   Option "d" ["dimensions"]
-      (ReqArg (\s op-> case reads s :: [(Coord,String)] of
-                  ((dims,_):_) ->
-                    return op { optDimensions = dims }
-                  _ -> error "Dimensions must be in format (width,height)")
-              "DIMENSIONS")
-      "Dimensions of map."]
-
-main = do
-  -- Parse command line.
-  argv <- getArgs
-  let (actions,noops,msgs) = getOpt RequireOrder options argv
-  ops <- foldl (>>=) (return defaults) actions
-  let Options { optRooms=rooms, optDimensions=dimensions } = ops
-
+genWalls :: IO [Point]
+genWalls = do
   gen <- newStdGen
-  putStrLn . showMap . splatter rooms gen $ makeMap dimensions
+  return $ convertRMap $ splatter startingRooms gen $ makeMap (boardWidth, boardHeight)
