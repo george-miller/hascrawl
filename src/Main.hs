@@ -1,24 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Control.Monad (void)
 import qualified Astar
 import Mapgen (genWalls)
+import Draw
 import Brick
-import qualified Brick.Widgets.Core as W
 import Graphics.Vty
 import Constants
 import Types
 import Control.Lens
-
-
-draw :: GameState -> [Widget ()]
-draw state = let
-    emptyBoard = replicate boardHeight (replicate boardWidth W.emptyWidget)
-    withWalls = foldl (\acc (Point x y) -> set (element y . element x) (W.str wallCharacter) acc) emptyBoard (walls state)
-    withEnemies = foldl (\acc (Point x y) -> set (element y . element x) (W.str enemyCharacter) acc) withWalls (map pos $ enemies state)
-    Point playerX playerY = pos $ player state
-    withPlayer = set (element playerY . element playerX) (W.str playerCharacter) withEnemies
-  in [W.hBox $ map W.vBox withPlayer]
+import Control.Monad.IO.Class (liftIO)
+import System.Random.Shuffle (shuffleM)
 
 eventHandler :: GameState -> BrickEvent n appEvent -> EventM n (Next GameState)
 eventHandler state brickEvent = case brickEvent of
@@ -26,6 +19,7 @@ eventHandler state brickEvent = case brickEvent of
     EvKey evKey [] -> case evKey of
       KEsc -> halt state
       KChar 'q' -> halt state
+      KChar 'r' -> liftIO (makeState (length $ _enemies state)) >>= continue
       KUp -> continue state
       KDown -> continue state
       KLeft -> continue state
@@ -33,19 +27,32 @@ eventHandler state brickEvent = case brickEvent of
     _ -> continue state
   _ -> continue state
 
+getShuffledAvailablePoints :: [Point] -> IO [Point]
+getShuffledAvailablePoints unavailablePoints = shuffleM [Point x y |
+                                                         x <- [1..boardWidth],
+                                                         y <- [1..boardHeight],
+                                                         Point x y `notElem` unavailablePoints]
+
+makeState :: Int -> IO GameState
+makeState prevNumEnemies = do
+  walls <- genWalls
+  availiblePositions <- getShuffledAvailablePoints walls
+  let (enemyPositions, availiblePositionsAfterEnemies) = splitAt (prevNumEnemies+1) availiblePositions
+  let ([playerPosition], availiblePositionsAfterPlayer) = splitAt 1 availiblePositionsAfterEnemies
+  let enemies = map ((flip $ set pos) defaultEnemy) enemyPositions
+  let player = set pos playerPosition defaultPlayer
+  return GameState {_player = player, _enemies = enemies, _walls = walls}
+
 app :: App GameState appEvent ()
 app = App
   { appDraw = draw
   , appChooseCursor = showFirstCursor
   , appStartEvent = return
-  , appAttrMap = const $ attrMap (white `on` black) []
+  , appAttrMap = const $ attrMap
+    (white `on` black) -- default
+    [("player", blue `on` black), ("enemy", red `on` black)]
   , appHandleEvent = eventHandler
   }
 
-initialState :: IO GameState
-initialState = do
-  w <- genWalls
-  return $ GameState {player = defaultPlayer, enemies = [], walls = w}
-
 main :: IO ()
-main = void $ initialState >>= defaultMain app
+main = void $ makeState initialEnemyCount >>= defaultMain app

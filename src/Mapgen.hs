@@ -114,3 +114,8 @@ genWalls :: IO [Point]
 genWalls = do
   gen <- newStdGen
   return $ convertRMap $ splatter startingRooms gen $ makeMap (boardWidth, boardHeight)
+
+m :: IO ()
+m = do
+  gen <- newStdGen
+  putStrLn $ showMap $ splatter startingRooms gen $ makeMap (boardWidth, boardHeight)
