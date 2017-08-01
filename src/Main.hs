@@ -29,8 +29,8 @@ eventHandler state brickEvent = case brickEvent of
 
 getShuffledAvailablePoints :: [Point] -> IO [Point]
 getShuffledAvailablePoints unavailablePoints = shuffleM [Point x y |
-                                                         x <- [1..boardWidth],
-                                                         y <- [1..boardHeight],
+                                                         x <- [0..(boardWidth-1)],
+                                                         y <- [0..(boardHeight-1)],
                                                          Point x y `notElem` unavailablePoints]
 
 makeState :: Int -> IO GameState
