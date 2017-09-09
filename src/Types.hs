@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Types where
-import Control.Lens
+import           Control.Lens
 
 class Positionable a where
   position :: a -> Point
@@ -15,9 +15,9 @@ instance Positionable MovingUnit where
 
 
 data GameState = GameState {
-  _player :: MovingUnit,
+  _player  :: MovingUnit,
   _enemies :: [MovingUnit],
-  _walls :: [Point]
+  _walls   :: [Point]
                            } deriving (Eq, Show)
 
 makeLenses ''MovingUnit
