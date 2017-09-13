@@ -13,20 +13,17 @@ import           Mapgen                 (genWalls)
 import           System.Random.Shuffle  (shuffleM)
 import           Types
 
-pointToCoord
-
-nextPlace :: GameState -> Point -> Point
-nextPlace state start =
-  let
-    waysFun = Astar.possibleWays $ getUnavailiblePoints state
-    (x, y) = head $ Astar.flood (view (player . pos) state) start waysFun Astar.cost
-  in Point x y
+moveEnemies :: GameState -> GameState
+moveEnemies state =
+  let moveEnemy = over pos (Astar.nextPlace state)
+  in over enemies (map moveEnemy) state
 
 eventHandler :: GameState -> BrickEvent n appEvent -> EventM n (Next GameState)
 eventHandler state brickEvent = case brickEvent of
   VtyEvent vtyEvent -> case vtyEvent of
     EvKey evKey [] -> case evKey of
       KEsc      -> halt state
+      KChar 'w' -> continue (moveEnemies state)
       KChar 'q' -> halt state
       KChar 'r' -> liftIO (makeState (length $ _enemies state)) >>= continue
       KUp       -> continue state
@@ -41,10 +38,6 @@ getShuffledAvailablePoints unavailablePoints = shuffleM [Point x y |
                                                          x <- [0..(boardWidth-1)],
                                                          y <- [0..(boardHeight-1)],
                                                          Point x y `notElem` unavailablePoints]
-getUnavailiblePoints :: GameState -> [Point]
-getUnavailiblePoints state =
-  let movables = _player state : _enemies state
-  in _walls state ++ map (view pos) movables
 
 makeState :: Int -> IO GameState
 makeState prevNumEnemies = do

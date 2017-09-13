@@ -3,12 +3,11 @@
 module Astar (
   Grid, Coord, Path,
   PossibleWaysFun, CostFun,
-  possibleWays,
-  cost,
-  flood
+  nextPlace
   ) where
 
 import           Constants
+import Control.Lens
 import           Control.Parallel.Strategies (parMap, rpar)
 import Types
 
@@ -18,6 +17,21 @@ type Path = [Coord]
 
 type PossibleWaysFun = Coord -> Path
 type CostFun = Coord -> Path -> Int
+
+getUnavailiblePoints :: GameState -> [Point]
+getUnavailiblePoints state =
+  let movables = _player state : _enemies state
+  in _walls state ++ map (view pos) movables
+
+convertPointToCoord :: Point -> Coord
+convertPointToCoord (Point x y) = (x,y)
+
+nextPlace :: GameState -> Point -> Point
+nextPlace state start =
+  let
+    waysFun = Astar.possibleWays $ map convertPointToCoord $ getUnavailiblePoints state
+    (x, y) = head $ Astar.flood (convertPointToCoord $ view (player . pos) state) (convertPointToCoord start) waysFun Astar.cost
+  in Point x y
 
 flood :: Coord -> Coord -> PossibleWaysFun -> CostFun -> Path
 flood fin pos pwf cf = head $ fl fin pwf cf [[pos]]
